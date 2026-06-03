@@ -1,13 +1,175 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Schema Prisma — ComplejoSport
+// Basado en el Diccionario de Datos (Entregable 3)
+// Patrón de herencia: Class Table Inheritance (CTI) — garantiza 3FN
 
 generator client {
   provider = "prisma-client-js"
-  //output   = "../app/generated/prisma"
+  output   = "../../node_modules/.prisma/client"
 }
 
+// En Prisma 7 la URL va en prisma.config.ts, no aquí
 datasource db {
   provider = "postgresql"
+}
+
+// ── Enums ──────────────────────────────────────────────────────────────────
+
+enum Rol {
+  admin
+  auxiliar
+  cliente
+}
+
+enum EstadoReserva {
+  Pendiente
+  Pagada
+  Cancelada
+  Ausente
+}
+
+enum EstadoCancha {
+  disponible
+  ocupada
+  en_mantenimiento @map("en mantenimiento")
+}
+
+enum TipoPartido {
+  abierto
+  cerrado
+}
+
+// ── Modelos ────────────────────────────────────────────────────────────────
+
+// Superclase de todos los usuarios (CTI). Las subclases extienden con sus propios atributos.
+model Usuario {
+  email         String @id @db.VarChar(255)
+  nombre        String @db.VarChar(100)
+  telefono      String @db.VarChar(20)
+  rol           Rol
+  clerk_user_id String @unique @db.VarChar(255)
+
+  cliente       Cliente?
+  auxiliar      Auxiliar?
+  complejos     Complejo[]
+  reservas      Reserva[]
+  resenias      Resenia[]
+  inasistencias Inasistencia[]
+}
+
+// Subclase de Usuario con rol = 'cliente'
+model Cliente {
+  email    String  @id @db.VarChar(255)
+  buscando Boolean @default(false)
+
+  usuario Usuario @relation(fields: [email], references: [email])
+}
+
+// Subclase de Usuario con rol = 'auxiliar' — pertenece a exactamente un complejo
+model Auxiliar {
+  email       String @id @db.VarChar(255)
+  id_complejo Int
+
+  usuario  Usuario  @relation(fields: [email], references: [email])
+  complejo Complejo @relation(fields: [id_complejo], references: [id_complejo])
+}
+
+// Un administrador (rol = 'admin') puede gestionar múltiples complejos
+model Complejo {
+  id_complejo         Int    @id @default(autoincrement())
+  nombre              String @db.VarChar(100)
+  direccion           String @db.VarChar(255)
+  email_administrador String @db.VarChar(255)
+
+  administrador Usuario        @relation(fields: [email_administrador], references: [email])
+  canchas       Cancha[]
+  auxiliares    Auxiliar[]
+  equipamientos Equipamiento[]
+}
+
+model Cancha {
+  id_cancha        Int          @id @default(autoincrement())
+  nombre           String       @db.VarChar(100)
+  horario_apertura DateTime     @db.Time()
+  horario_cierre   DateTime     @db.Time()
+  duracion_turno   Int
+  deporte          String       @db.VarChar(50)
+  estado_operativo EstadoCancha @default(disponible)
+  id_complejo      Int
+
+  complejo Complejo  @relation(fields: [id_complejo], references: [id_complejo])
+  reservas Reserva[]
+  resenias Resenia[]
+}
+
+model Reserva {
+  id_reserva        Int           @id @default(autoincrement())
+  fecha             DateTime      @db.Date
+  hora              DateTime      @db.Time()
+  estado            EstadoReserva @default(Pendiente)
+  tipo_partido      TipoPartido
+  cupos_disponibles Int?          // null cuando tipo_partido = 'cerrado'
+  id_cancha         Int
+  email_cliente     String        @db.VarChar(255)
+
+  // email_cliente debe apuntar a un Usuario con rol = 'cliente' — validar en la capa de aplicación
+  cancha        Cancha                @relation(fields: [id_cancha], references: [id_cancha])
+  cliente       Usuario               @relation(fields: [email_cliente], references: [email])
+  pagos         Pago[]
+  equipamientos ReservaEquipamiento[]
+}
+
+model Pago {
+  id_pago    Int     @id @default(autoincrement())
+  id_reserva Int
+  monto      Decimal @db.Decimal(10, 2)
+
+  reserva Reserva @relation(fields: [id_reserva], references: [id_reserva])
+}
+
+model Equipamiento {
+  id_equipamiento  Int     @id @default(autoincrement())
+  nombre           String  @db.VarChar(100)
+  precio           Decimal @db.Decimal(10, 2)
+  stock            Int
+  stock_disponible Int
+  id_complejo      Int
+
+  // stock_disponible <= stock siempre — validar en la capa de aplicación
+  complejo Complejo              @relation(fields: [id_complejo], references: [id_complejo])
+  reservas ReservaEquipamiento[]
+}
+
+// Tabla asociativa M:N entre Reserva y Equipamiento
+model ReservaEquipamiento {
+  id_reserva      Int
+  id_equipamiento Int
+  cantidad        Int
+
+  reserva      Reserva      @relation(fields: [id_reserva], references: [id_reserva])
+  equipamiento Equipamiento @relation(fields: [id_equipamiento], references: [id_equipamiento])
+
+  @@id([id_reserva, id_equipamiento])
+}
+
+// Nota: nombre en DB "Resenia" (sin tilde) por compatibilidad con identificadores SQL
+model Resenia {
+  id_resenia    Int    @id @default(autoincrement())
+  comentario    String @db.Text
+  calificacion  Int    // Regla: 1 ≤ calificacion ≤ 5 — validar en la capa de aplicación
+  email_cliente String @db.VarChar(255)
+  id_cancha     Int
+
+  // email_cliente debe tener rol = 'cliente'
+  cliente Usuario @relation(fields: [email_cliente], references: [email])
+  cancha  Cancha  @relation(fields: [id_cancha], references: [id_cancha])
+}
+
+model Inasistencia {
+  id_inasistencia    Int      @id @default(autoincrement())
+  fecha_inasistencia DateTime @db.Date
+  fecha_caducidad    DateTime @db.Date
+  email_cliente      String   @db.VarChar(255)
+
+  // email_cliente debe tener rol = 'cliente'
+  cliente Usuario @relation(fields: [email_cliente], references: [email])
 }

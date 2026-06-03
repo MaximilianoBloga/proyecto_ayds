@@ -32,7 +32,7 @@ Plataforma web que permite a usuarios clientes reservar canchas deportivas en co
 | Backend | API Routes de Next.js + servidor Express separado (`backend/`) |
 | ORM | Prisma 7 con adaptador `@prisma/adapter-pg` |
 | Base de datos | PostgreSQL |
-| Autenticación | JWT |
+| Autenticación | Clerk |
 | Pagos | Mercado Pago |
 | Notificaciones | Gmail API / Nodemailer |
 | Contenedores | Docker |
@@ -61,12 +61,12 @@ ProyectoArqui/
 │       └── data.ts             # Datos mockeados (reemplazar con queries Prisma al tener DB)
 ├── backend/                    # Servidor Express independiente
 │   ├── app/prisma/prisma.ts    # Instancia Prisma del backend
-│   ├── prisma/schema.prisma    # Schema Prisma (fuente de verdad del modelo — aún vacío)
+│   ├── prisma/schema.prisma    # Schema Prisma (fuente de verdad del modelo)
 │   ├── app.js
 │   └── server.js
 ├── docs/
 │   ├── CU/                     # Casos de uso CU-01 a CU-26 (.docx)
-│   ├── Diccionario de Datos.docx / .pdf
+│   ├── Diccionario de Datos (1).docx / Diccionario de Datos.pdf
 │   ├── Diagrama de componentes - entregable 2.pdf
 │   ├── Diagrama entidad-relacion entregable 1.png
 │   ├── Documentacion-proyecto - entregable 1.pdf
@@ -105,23 +105,24 @@ Decisión tomada: las canchas son recursos anidados dentro de complejos. La rese
 
 ---
 
-## Base de Datos — Pendientes antes de la primera migración
+## Base de Datos — Estado actual
 
-La DB está hosteada en **Neon PostgreSQL** (Vercel). La connection string está en `.env` y `.env.local`. Hay cuatro cosas a resolver antes de correr `prisma migrate dev`:
+La DB está hosteada en **Neon PostgreSQL** (Vercel). Las tablas ya están creadas y las migraciones aplicadas.
 
-1. **Escribir los modelos en `backend/prisma/schema.prisma`** — actualmente vacío.
-2. **Agregar `directUrl`** — Neon usa PgBouncer; sin `directUrl` apuntando a la URL sin pooling, las migraciones fallan por advisory locks:
-   ```prisma
-   datasource db {
-     provider  = "postgresql"
-     url       = env("DATABASE_URL")
-     directUrl = env("DATABASE_URL_UNPOOLED")
-   }
-   ```
-3. **Copiar `DATABASE_URL_UNPOOLED` al `.env`** — actualmente solo está en `.env.local` (que lee Next.js, no Prisma CLI).
-4. **Corregir el path en `prisma.config.ts`** — apunta a `prisma/schema.prisma` pero el archivo está en `backend/prisma/schema.prisma`.
+**Configuración resuelta (Prisma 7 + Neon):**
+- La URL va en `prisma.config.ts` (no en `schema.prisma` — breaking change de Prisma 7)
+- `prisma.config.ts` usa `DATABASE_URL_UNPOOLED` para migraciones (directo, sin PgBouncer)
+- `backend/app/prisma/prisma.ts` instancia el cliente con `PrismaPg` adapter y la URL pooled
+- El cliente se genera en `node_modules/.prisma/client` (output explícito para evitar problemas con pnpm)
+- `migrate dev` no funciona sin TTY — usar `migrate deploy` para aplicar migraciones existentes
 
-Una vez resueltos: `pnpm exec prisma migrate dev` crea las tablas. Reemplazar el import de `src/mocks/data.ts` en `app/page.tsx` con queries de Prisma, y borrar el archivo de mocks.
+**Para agregar campos al schema:**
+1. Editar `backend/prisma/schema.prisma`
+2. Escribir el SQL en un nuevo archivo `backend/prisma/migrations/<timestamp>_<nombre>/migration.sql`
+3. Correr `pnpm exec prisma migrate deploy`
+4. Correr `pnpm exec prisma generate`
+
+**Próximo paso pendiente:** reemplazar el import de `src/mocks/data.ts` en `app/page.tsx` con queries de Prisma y borrar el archivo de mocks.
 
 ---
 
@@ -171,12 +172,12 @@ Una vez resueltos: `pnpm exec prisma migrate dev` crea las tablas. Reemplazar el
 
 | Tabla | PK | Relaciones clave |
 |-------|----|-----------------|
-| `Usuario` | `email` | superclase; rol: `admin\|auxiliar\|cliente` |
+| `Usuario` | `email` | superclase; rol: `admin\|auxiliar\|cliente`; `clerk_user_id` UNIQUE (auth via Clerk) |
 | `Cliente` | `email` (FK→Usuario) | herencia 1:1 de Usuario |
 | `Auxiliar` | `email` (FK→Usuario) | FK→Complejo |
 | `Complejo` | `id_complejo` | FK→Usuario (`email_administrador`) |
-| `Cancha` | `id_cancha` | FK→Complejo |
-| `Reserva` | `id_reserva` | FK→Cancha, FK→Cliente; estados: `Pendiente\|Pagada\|Cancelada\|Ausente` |
+| `Cancha` | `id_cancha` | FK→Complejo; `estado_operativo`: `disponible\|ocupada\|en mantenimiento` |
+| `Reserva` | `id_reserva` | FK→Cancha, FK→Cliente; `tipo_partido`: `abierto\|cerrado`; `cupos_disponibles` nullable (null si cerrado) |
 | `Pago` | `id_pago` | FK→Reserva |
 | `Equipamiento` | `id_equipamiento` | FK→Complejo; campos: `stock`, `stock_disponible` |
 | `ReservaEquipamiento` | `(id_reserva, id_equipamiento)` | tabla asociativa M:N |
