@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, X, Trophy } from 'lucide-react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { Menu, X, Trophy, User } from 'lucide-react';
+import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
 
 const LINKS = [
   { href: '/', label: 'Inicio' },
@@ -15,6 +15,7 @@ const LINKS = [
 export default function Navbar() {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [conSombra, setConSombra] = useState(false);
+  const { isSignedIn, isLoaded } = useAuth();
 
   useEffect(() => {
     const manejarScroll = () => setConSombra(window.scrollY > 10);
@@ -51,29 +52,30 @@ export default function Navbar() {
           </div>
 
           {/* Auth desktop */}
-          <div className="hidden md:flex items-center gap-3">
-            <SignedOut>
+          <div className="hidden md:flex items-center gap-3 min-w-[120px] justify-end">
+            {isLoaded && !isSignedIn && (
               <SignInButton mode="redirect">
                 <button className="flex items-center gap-2 bg-[#ACC2AB] text-[#061F03] px-4 py-2 rounded-full text-sm font-semibold hover:bg-white transition-colors duration-200">
+                  <User className="w-4 h-4" />
                   Iniciar sesión
                 </button>
               </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <Link
-                href="/reservas"
-                className="text-sm font-medium text-[#ACC2AB] hover:text-white transition-colors duration-200"
-              >
-                Mis reservas
-              </Link>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: 'w-9 h-9',
-                  },
-                }}
-              />
-            </SignedIn>
+            )}
+            {isLoaded && isSignedIn && (
+              <>
+                <Link
+                  href="/reservas"
+                  className="text-sm font-medium text-[#ACC2AB] hover:text-white transition-colors duration-200"
+                >
+                  Mis reservas
+                </Link>
+                <UserButton
+                  appearance={{
+                    elements: { avatarBox: 'w-9 h-9' },
+                  }}
+                />
+              </>
+            )}
           </div>
 
           {/* Botón hamburguesa mobile */}
@@ -100,29 +102,30 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <SignedOut>
+          {isLoaded && !isSignedIn && (
             <SignInButton mode="redirect">
               <button className="flex items-center gap-2 bg-[#ACC2AB] text-[#061F03] px-4 py-2 rounded-full text-sm font-semibold w-fit">
+                <User className="w-4 h-4" />
                 Iniciar sesión
               </button>
             </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <Link
-              href="/reservas"
-              onClick={() => setMenuAbierto(false)}
-              className="text-[#ACC2AB] hover:text-white transition-colors text-sm font-medium"
-            >
-              Mis reservas
-            </Link>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: 'w-9 h-9',
-                },
-              }}
-            />
-          </SignedIn>
+          )}
+          {isLoaded && isSignedIn && (
+            <>
+              <Link
+                href="/reservas"
+                onClick={() => setMenuAbierto(false)}
+                className="text-[#ACC2AB] hover:text-white transition-colors text-sm font-medium"
+              >
+                Mis reservas
+              </Link>
+              <UserButton
+                appearance={{
+                  elements: { avatarBox: 'w-9 h-9' },
+                }}
+              />
+            </>
+          )}
         </div>
       )}
     </nav>
