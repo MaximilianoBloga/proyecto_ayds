@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { Webhook } from 'svix';
-import prisma from '@/backend/app/prisma/prisma';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 type ClerkUserEvent = {
   type: 'user.created' | 'user.updated' | 'user.deleted';
@@ -10,13 +11,20 @@ type ClerkUserEvent = {
     primary_email_address_id: string;
     first_name: string | null;
     last_name: string | null;
-    phone_numbers: { phone_number: string }[];
   };
 };
+
+function getPrisma() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL no configurado');
+  const adapter = new PrismaPg(url);
+  return new PrismaClient({ adapter });
+}
 
 export async function POST(req: Request) {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
   if (!webhookSecret) {
+    console.error('[webhook/clerk] CLERK_WEBHOOK_SECRET no configurado');
     return new Response('CLERK_WEBHOOK_SECRET no configurado', { status: 500 });
   }
 
@@ -41,57 +49,67 @@ export async function POST(req: Request) {
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
     }) as ClerkUserEvent;
-  } catch {
+  } catch (err) {
+    console.error('[webhook/clerk] Firma inválida:', err);
     return new Response('Firma de webhook inválida', { status: 400 });
   }
 
   const { type, data } = event;
 
-  if (type === 'user.created') {
-    const emailObj = data.email_addresses.find(
-      (e) => e.id === data.primary_email_address_id
-    );
-    const email = emailObj?.email_address;
-    if (!email) {
-      return new Response('Email primario no encontrado', { status: 400 });
+  try {
+    const prisma = getPrisma();
+
+    if (type === 'user.created') {
+      const emailObj = data.email_addresses.find(
+        (e) => e.id === data.primary_email_address_id
+      );
+      const email = emailObj?.email_address;
+      if (!email) {
+        return new Response('Email primario no encontrado', { status: 400 });
+      }
+
+      const nombre =
+        [data.first_name, data.last_name].filter(Boolean).join(' ').trim() || email;
+
+      await prisma.usuario.create({
+        data: {
+          email,
+          nombre,
+          telefono: '12345678',
+          rol: 'cliente',
+          clerk_user_id: data.id,
+          cliente: {
+            create: { buscando: false },
+          },
+        },
+      });
+
+      console.log('[webhook/clerk] Usuario creado:', email);
     }
 
-    const nombre =
-      [data.first_name, data.last_name].filter(Boolean).join(' ') || email;
-    const telefono = data.phone_numbers?.[0]?.phone_number ?? '';
+    if (type === 'user.updated') {
+      const nombre =
+        [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
 
-    await prisma.usuario.create({
-      data: {
-        email,
-        nombre,
-        telefono,
-        rol: 'cliente',
-        clerk_user_id: data.id,
-        cliente: {
-          create: { buscando: false },
-        },
-      },
-    });
-  }
+      if (nombre) {
+        await prisma.usuario.updateMany({
+          where: { clerk_user_id: data.id },
+          data: { nombre },
+        });
+      }
+    }
 
-  if (type === 'user.updated') {
-    const nombre =
-      [data.first_name, data.last_name].filter(Boolean).join(' ');
-    const telefono = data.phone_numbers?.[0]?.phone_number;
+    if (type === 'user.deleted') {
+      await prisma.usuario.deleteMany({
+        where: { clerk_user_id: data.id },
+      });
+    }
 
-    await prisma.usuario.updateMany({
-      where: { clerk_user_id: data.id },
-      data: {
-        ...(nombre ? { nombre } : {}),
-        ...(telefono !== undefined ? { telefono } : {}),
-      },
-    });
-  }
-
-  if (type === 'user.deleted') {
-    await prisma.usuario.deleteMany({
-      where: { clerk_user_id: data.id },
-    });
+    await prisma.$disconnect();
+  } catch (err) {
+    const mensaje = err instanceof Error ? err.message : String(err);
+    console.error('[webhook/clerk] Error en DB:', mensaje);
+    return new Response(`Error interno: ${mensaje}`, { status: 500 });
   }
 
   return new Response('OK', { status: 200 });
