@@ -51,7 +51,21 @@ ProyectoArqui/
 ├── app/                        # Next.js App Router (páginas y API routes)
 │   ├── globals.css             # Tailwind v4 + variables CSS de paleta
 │   ├── layout.tsx              # Layout raíz (lang=es, fuentes Geist)
-│   └── page.tsx                # Landing page (Home)
+│   ├── page.tsx                # Landing page (Home)
+│   ├── sign-in/[[...sign-in]]/ # Página de login (Clerk)
+│   ├── sign-up/[[...sign-up]]/ # Página de registro (Clerk)
+│   ├── auth/redirect/          # Redirect post-login según rol
+│   ├── admin/
+│   │   ├── page.tsx            # Panel admin (Server Component)
+│   │   └── complejos/
+│   │       └── page.tsx        # Gestión de complejos ('use client') ✓ hecho
+│   └── api/
+│       ├── auth/complejo-auxiliar/route.ts   # GET — id_complejo del auxiliar logueado
+│       └── v1/
+│           ├── complejos/
+│           │   ├── route.ts                  # GET (lista paginada) + POST (crear)
+│           │   └── [idComplejo]/route.ts     # GET + PATCH + DELETE
+│           └── webhooks/clerk/route.ts       # Webhook Clerk (user.created/updated/deleted)
 ├── src/
 │   ├── components/             # Componentes reutilizables de UI
 │   │   ├── Navbar.tsx          # 'use client' — sticky, hamburguesa mobile
@@ -101,8 +115,9 @@ Decisión tomada: las canchas son recursos anidados dentro de complejos. La rese
 
 ```
 /                                                   → Landing (hecha)
-/login                                              → Inicio de sesión
-/registro                                           → Registro
+/sign-in                                            → Inicio de sesión (Clerk)
+/sign-up                                            → Registro (Clerk)
+/auth/redirect                                      → Redirect post-login según rol (cliente→/, admin→/admin, auxiliar→/auxiliar/[id])
 
 /complejos                                          → Lista y búsqueda de complejos
 /complejos/[complejo_id]                            → Detalle del complejo + sus canchas
@@ -112,9 +127,11 @@ Decisión tomada: las canchas son recursos anidados dentro de complejos. La rese
 /reservas                                           → Mis reservas (auth requerida)
 /reservas/[reserva_id]                              → Detalle / comprobante de reserva
 
-/dashboard                                          → Panel admin / auxiliar (auth requerida)
-/dashboard/complejos                                → Gestión de complejos
-/dashboard/complejos/[complejo_id]                  → Gestión de canchas e inventario
+/admin                                              → Panel admin (auth requerida) ✓ hecho
+/admin/complejos                                    → Gestión de complejos del admin ✓ hecho
+/admin/complejos/[complejo_id]/canchas              → Gestión de canchas (pendiente)
+
+/auxiliar/[complejo_id]                             → Panel auxiliar (auth requerida, pendiente)
 ```
 
 ---
@@ -126,17 +143,21 @@ La DB está hosteada en **Neon PostgreSQL** (Vercel). Las tablas ya están cread
 **Configuración resuelta (Prisma 7 + Neon):**
 - La URL va en `prisma.config.ts` (no en `schema.prisma` — breaking change de Prisma 7)
 - `prisma.config.ts` usa `DATABASE_URL_UNPOOLED` para migraciones (directo, sin PgBouncer)
-- `backend/app/prisma/prisma.ts` instancia el cliente con `PrismaPg` adapter y la URL pooled
-- El cliente se genera en `node_modules/.prisma/client` (output explícito para evitar problemas con pnpm)
+- Las API routes de Next.js instancian Prisma directamente con `new PrismaClient({ adapter: new PrismaPg(url) })`
 - `migrate dev` no funciona sin TTY — usar `migrate deploy` para aplicar migraciones existentes
+
+**Problema conocido con pnpm + Prisma (IMPORTANTE):**
+pnpm aísla los paquetes en un store interno. El client generado por `prisma generate` debe ir directamente al store de pnpm, NO a `node_modules/.prisma/client` (raíz). El `output` en `backend/prisma/schema.prisma` ya está configurado correctamente apuntando al store:
+```
+output = "../../node_modules/.pnpm/@prisma+client@7.8.0_prisma_56de0e0ff1513c5868510324fbbffcfc/node_modules/.prisma/client"
+```
+Si después de un `pnpm install` el cliente deja de funcionar, correr `pnpm exec prisma generate` para regenerar en el lugar correcto. Si el hash del path cambia (por actualizar versiones de prisma/`@prisma/client`), actualizar el `output` con el nuevo hash.
 
 **Para agregar campos al schema:**
 1. Editar `backend/prisma/schema.prisma`
 2. Escribir el SQL en un nuevo archivo `backend/prisma/migrations/<timestamp>_<nombre>/migration.sql`
 3. Correr `pnpm exec prisma migrate deploy`
 4. Correr `pnpm exec prisma generate`
-
-**Próximo paso pendiente:** reemplazar el import de `src/mocks/data.ts` en `app/page.tsx` con queries de Prisma y borrar el archivo de mocks.
 
 ---
 

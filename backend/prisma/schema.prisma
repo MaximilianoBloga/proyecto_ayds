@@ -4,7 +4,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../../node_modules/.prisma/client"
+  output   = "../../node_modules/.pnpm/@prisma+client@7.8.0_prisma_56de0e0ff1513c5868510324fbbffcfc/node_modules/.prisma/client"
 }
 
 // En Prisma 7 la URL va en prisma.config.ts, no aquí
