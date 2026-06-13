@@ -34,7 +34,7 @@ export default function PaginaRedirectAuth() {
       return
     }
 
-    router.replace('/')
+    router.replace('/home')
   }, [isLoaded, user, router])
 
   return null

@@ -189,7 +189,7 @@ paths:
   # --------- MÓDULO: RESERVAS ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
   /reservas:                                            # Endpoints para listar o crear reservas
-    get:                                                # Endpoint para listar reservas con filtros opcionales por emailCliente, idCancha o fecha
+    get:                                                #✅ Endpoint para listar reservas con filtros opcionales por emailCliente, idCancha o fecha
       summary: Listar reservas
       tags: [Reservas]
       security:
@@ -231,7 +231,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    post:                                               # Endpoint para crear una nueva reserva                     
+    post:                                               #✅ Endpoint para crear una nueva reserva                     
       summary: Crear una nueva reserva
       tags: [Reservas]
       security:
@@ -300,7 +300,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /reservas/{idReserva}:                                # Endpoints para consultar, modificar o eliminar una reserva específica
-    get:                                                # Endpoint para consultar datos de una reserva específica
+    get:                                                #✅ Endpoint para consultar datos de una reserva específica
       summary: Consultar una reserva
       tags: [Reservas]
       security:
@@ -338,7 +338,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    patch:                                              # Endpoint para modificar el estado de una reserva (solo para admin o auxiliar)
+    patch:                                              #✅ Endpoint para modificar el estado de una reserva (solo para admin o auxiliar)
       summary: Modificar estado de una reserva
       tags: [Reservas]
       security:
@@ -408,7 +408,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    delete:                                             # Endpoint para cancelar una reserva (solo para el cliente que la hizo o admin/auxiliar)
+    delete:                                             #✅ Endpoint para cancelar una reserva (solo para el cliente que la hizo o admin/auxiliar)
       summary: Cancelar una reserva
       tags: [Reservas]
       security:
@@ -710,7 +710,7 @@ paths:
   # --------- MÓDULO: COMPLEJOS ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                       
   /complejos:                                           # Endpoints para listar o crear complejos deportivos
-    get:                                                # Endpoint para listar complejos deportivos con paginación
+    get:                                                #✅ Endpoint para listar complejos deportivos con paginación
       summary: Listar complejos
       tags: [Complejos]
       parameters:
@@ -740,7 +740,7 @@ paths:
                   pagination:
                     $ref: '#/components/schemas/Pagination'
 
-    post:                                               # Endpoint para crear un nuevo complejo
+    post:                                               #✅ Endpoint para crear un nuevo complejo
       summary: Crear un nuevo complejo
       tags: [Complejos]
       security:
@@ -791,7 +791,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /complejos/{idComplejo}:                              # Endpoints para consultar, modificar o eliminar un complejo específico
-    get:                                                # Endpoint para consultar datos de un complejo específico
+    get:                                                #✅ Endpoint para consultar datos de un complejo específico
       summary: Consultar datos de un complejo
       tags: [Complejos]
       parameters:
@@ -815,7 +815,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    patch:                                              # Endpoint para modificar datos de un complejo específico
+    patch:                                              #✅ Endpoint para modificar datos de un complejo específico
       summary: Modificar datos de un complejo
       tags: [Complejos]
       security:
@@ -872,7 +872,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    delete:                                             # Endpoint para eliminar un complejo específico
+    delete:                                             #✅ Endpoint para eliminar un complejo específico
       summary: Eliminar un complejo
       tags: [Complejos]
       security:
@@ -1123,7 +1123,7 @@ paths:
   # --------- MÓDULO: CANCHAS ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
   /canchas/{idCancha}:                                  # Endpoints para consultar, modificar o eliminar una cancha específica
-    get:                                                # Endpoint para consultar datos de una cancha específica
+    get:                                                #✅ Endpoint para consultar datos de una cancha específica
       summary: Consultar datos de una cancha
       tags: [Canchas]
       parameters:
@@ -1147,7 +1147,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    patch:                                              # Endpoint para modificar datos de una cancha específica
+    patch:                                              #✅ Endpoint para modificar datos de una cancha específica
       summary: Modificar datos de una cancha
       tags: [Canchas]
       security:
@@ -1217,7 +1217,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    delete:                                             # Endpoint para eliminar una cancha específica
+    delete:                                             #✅ Endpoint para eliminar una cancha específica
       summary: Eliminar una cancha
       tags: [Canchas]
       security:
@@ -1252,7 +1252,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /complejos/{idComplejo}/canchas:                      # Endpoints para listar o crear canchas en un complejo específico
-    get:                                                # Endpoint para listar canchas de un complejo con filtros opcionales por deporte o estado operativo
+    get:                                                #✅ Endpoint para listar canchas de un complejo con filtros opcionales por deporte o estado operativo
       summary: Listar canchas de un complejo
       tags: [Canchas]
       parameters:
@@ -1314,7 +1314,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    post:                                               # Endpoint para crear una nueva cancha en un complejo específico
+    post:                                               #✅ Endpoint para crear una nueva cancha en un complejo específico
       summary: Crear una nueva cancha en un complejo
       tags: [Canchas]
       security:
